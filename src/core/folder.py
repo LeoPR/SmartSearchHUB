@@ -1,0 +1,16 @@
+from __future__ import annotations
+from pathlib import Path
+from typing import Protocol, Optional, List, Tuple
+
+class BaseFolder(Protocol):
+    uri: str
+    tmp_dir: Path
+    cache_dir: Path
+    save_dir: Optional[Path]
+
+    def info(self) -> dict: ...
+    def list(self) -> List["BaseFile"]: ...
+    def get_documents(self, new: bool = False, updated: bool = False,
+                      types: Optional[Tuple[str, ...]] = None) -> List["BaseFile"]: ...
+    def sync(self) -> None: ...
+    def release(self) -> None: ...

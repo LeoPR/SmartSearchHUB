@@ -1,0 +1,23 @@
+# requirements.txt - VERSÃO ATUALIZADA
+
+# Parsing HTML/XML
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# HTTP requests (para UrlDriver)
+requests>=2.31.0
+
+# Processamento de imagens (opcional)
+Pillow>=10.0.0
+
+# Google Drive (já existente)
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+
+# Utilitários
+urllib3>=2.0.0
+
+# Para desenvolvimento/testes (opcionais)
+pytest>=7.4.0
+pytest-cov>=4.1.0
