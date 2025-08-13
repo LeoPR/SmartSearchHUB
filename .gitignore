@@ -3,3 +3,4 @@
 /config/credentials
 *.pyc
 config/docs_sources.csv
+/.venv/
