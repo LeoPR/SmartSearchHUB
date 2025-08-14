@@ -4,3 +4,6 @@
 *.pyc
 config/docs_sources.csv
 /.venv/
+config/db.sqlite
+config/gdrive_auth.json
+config/bootstrap_folders.json

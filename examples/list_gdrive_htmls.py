@@ -1,22 +1,13 @@
 # examples/list_gdrive_htmls.py
 from __future__ import annotations
+from src.core.io.html import Html
 from src.api.facade import Folder
-from src.providers.google_drive.config import Config
-from src.core.io.html import Html  # só p/ isinstance
+from src.providers.storage import Storage
+from src.providers.config import Config
 
-cfg = Config(
-    auth_method="oauth",
-    credentials_file="./config/credentials/client_secret_737482562292-hrpme53jvk24vs2vvucai2h5v0p2b42i.apps.googleusercontent.com.json",
-    token_file="./config/credentials/client_token.json",
-)
+cfg = Config(file="./config/gdrive_auth.json")
 
-folders = []
-with open("./config/docs_sources.csv", mode="r") as f:
-    lines=f.readlines()
-    folders = [ line.split(",") for line in lines]
-    folders = [ [d,l.replace('"','')] for d,l in folders]
-    folders = [ f"{d}://{l}" for d,l in folders]
-
+folders = Storage("sqlite://./config/db.sqlite")
 FOLDER_URI = folders[0]
 
 folder = Folder.from_uri(FOLDER_URI, config=cfg, tmp="./tmp", cache="./cache", save="./permanent")

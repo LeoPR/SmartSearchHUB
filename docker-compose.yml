@@ -32,23 +32,6 @@ services:
       - ai_network
     restart: unless-stopped
 
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
-    ports:
-      - "8080:8080"
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=N{aP+{%a3$8=+>mVyWwlHq%2v;+^di1R}6BNo7m2UJ,wIo1cjEDE;XLHKx.PD1l$
-    volumes:
-      - ./open-webui:/app/backend/data
-    networks:
-      - ai_network
-    restart: unless-stopped
-    depends_on:
-      - ollama
-
-
 
 networks:
   ai_network:
