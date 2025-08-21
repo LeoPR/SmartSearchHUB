@@ -67,3 +67,12 @@ class Storage:
             self._folders = self._load_folders()
         except Exception as e:
             print(f"Erro ao fazer bootstrap: {e}")
+
+    def close(self):
+        """Fecha conexão com banco (importante no Windows)."""
+        if hasattr(self, 'conn') and self.conn:
+            self.conn.close()
+
+    def __del__(self):
+        """Cleanup automático."""
+        self.close()

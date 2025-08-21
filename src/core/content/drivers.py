@@ -33,7 +33,11 @@ class ContentDriver(ABC):
 
     def get_content_as_text(self, encoding: str = 'utf-8') -> str:
         """Converte conteúdo para texto."""
-        return self.get_content().decode(encoding, errors='ignore')
+        try:
+            return self.get_content().decode(encoding, errors='ignore')
+        except UnicodeDecodeError:
+            # Fallback para Windows-1252 (comum no Windows)
+            return self.get_content().decode('windows-1252', errors='ignore')
 
 
 @dataclass

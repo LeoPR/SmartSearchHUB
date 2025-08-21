@@ -1,7 +1,8 @@
 import pytest
 from unittest.mock import Mock, patch
 from src.core.io.html import Html, HtmlObjectParser
-
+from src.core.content.text import HeadingObject
+from src.core.content.link import LinkObject
 
 class TestHtmlParser:
     def test_extract_headings(self):
