@@ -113,7 +113,85 @@ def is_windows():
     """Fixture para detectar Windows."""
     return sys.platform.startswith('win')
 
+
 @pytest.fixture
 def temp_db_path(tmp_path):
     """Fixture para caminho de DB temporário compatível com Windows."""
     return tmp_path / "test.db"
+
+
+# NOVAS FIXTURES para suporte a testes de encoding e mime detection
+
+@pytest.fixture
+def sample_text_files(tmp_path):
+    """Cria arquivos de teste em diferentes encodings."""
+    files = {}
+
+    # UTF-8 com acentos portugueses
+    utf8_file = tmp_path / "test_utf8.txt"
+    utf8_file.write_text("configuração técnica açúcar não coração", encoding='utf-8')
+    files['utf8'] = utf8_file
+
+    # ASCII simples
+    ascii_file = tmp_path / "test_ascii.txt"
+    ascii_file.write_text("configuration technical sugar", encoding='ascii')
+    files['ascii'] = ascii_file
+
+    # UTF-8 com BOM
+    utf8_bom_file = tmp_path / "test_utf8_bom.txt"
+    utf8_bom_file.write_text("configuração com BOM", encoding='utf-8-sig')
+    files['utf8_bom'] = utf8_bom_file
+
+    # Windows-1252 simulado
+    win1252_file = tmp_path / "test_win1252.txt"
+    content_1252 = "configura\xe7\xe3o t\xe9cnica"
+    win1252_file.write_bytes(content_1252.encode('latin1'))
+    files['win1252'] = win1252_file
+
+    return files
+
+
+@pytest.fixture
+def sample_binary_files(tmp_path):
+    """Cria arquivos binários de teste para detecção de MIME."""
+    files = {}
+
+    # Arquivo PDF simulado (header PDF)
+    pdf_file = tmp_path / "test.pdf"
+    pdf_content = b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\n'
+    pdf_file.write_bytes(pdf_content)
+    files['pdf'] = pdf_file
+
+    # Arquivo JPEG simulado (header JPEG)
+    jpg_file = tmp_path / "test.jpg"
+    jpg_content = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb'
+    jpg_file.write_bytes(jpg_content)
+    files['jpg'] = jpg_file
+
+    # Arquivo PNG simulado (header PNG)
+    png_file = tmp_path / "test.png"
+    png_content = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+    png_file.write_bytes(png_content)
+    files['png'] = png_file
+
+    # Arquivo ZIP simulado (header ZIP)
+    zip_file = tmp_path / "test.zip"
+    zip_content = b'PK\x03\x04\x14\x00\x00\x00\x08\x00'
+    zip_file.write_bytes(zip_content)
+    files['zip'] = zip_file
+
+    return files
+
+
+@pytest.fixture
+def mock_requests_response():
+    """Mock de resposta HTTP para testes de UrlDriver."""
+    mock_response = Mock()
+    mock_response.content = b"<html><body>Conteudo HTML</body></html>"
+    mock_response.status_code = 200
+    mock_response.headers = {
+        'content-type': 'text/html; charset=utf-8',
+        'content-length': '42'
+    }
+    mock_response.url = "https://example.com"
+    return mock_response
