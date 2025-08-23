@@ -1,7 +1,7 @@
 # src/core/content/drivers.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Union, BinaryIO, Any, Dict
 from urllib.parse import urlparse
@@ -31,51 +31,126 @@ class ContentDriver(ABC):
         """Verifica se a fonte está disponível."""
         pass
 
-    def get_content_as_text(self, encoding: str = 'utf-8') -> str:
-        """Converte conteúdo para texto."""
+    def get_content_as_text(self, encoding: str = 'auto') -> str:
+        """Converte conteúdo para texto com detecção automática de encoding."""
+        content_bytes = self.get_content()
+
+        if encoding == 'auto':
+            detected_encoding = self.detect_encoding(content_bytes)
+        else:
+            detected_encoding = encoding
+
         try:
-            return self.get_content().decode(encoding, errors='ignore')
+            result = content_bytes.decode(detected_encoding)
+
+            if result.startswith('\ufeff'):
+                result = result.lstrip('\ufeff')
+
+            return result
         except UnicodeDecodeError:
-            # Fallback para Windows-1252 (comum no Windows)
-            return self.get_content().decode('windows-1252', errors='ignore')
+            return content_bytes.decode(detected_encoding, errors='ignore')
 
 
 @dataclass
 class LocalFileDriver(ContentDriver):
-    """Driver para arquivos locais."""
+    """Driver para arquivos locais com detecção robusta de tipo."""
 
     file_path: Union[str, Path]
+    _file_info: Optional[Dict[str, Any]] = field(default=None, init=False)
 
     def __post_init__(self):
         self.file_path = Path(self.file_path)
 
+    def get_file_info(self) -> Dict[str, Any]:
+        """Analisa arquivo usando detector auxiliar."""
+        if self._file_info is not None:
+            return self._file_info
+
+        if not self.is_available():
+            raise FileNotFoundError(f"Arquivo não encontrado: {self.file_path}")
+
+        # USA A BIBLIOTECA AUXILIAR
+        from .mime_detector import detect_file_type
+
+        detection_result = detect_file_type(self.file_path)
+
+        # Informações do arquivo
+        stat = self.file_path.stat()
+
+        self._file_info = {
+            **detection_result.to_dict(),
+            'size': stat.st_size,
+            'modified': stat.st_mtime,
+            'name': self.file_path.name,
+            'extension': self.file_path.suffix.lower(),
+        }
+
+        return self._file_info
+
+    def get_content_as_text(self, encoding: str = 'auto') -> str:
+        """Obtém conteúdo como texto."""
+        file_info = self.get_file_info()
+
+        if not file_info['is_text']:
+            raise ValueError(
+                f"Arquivo '{self.file_path.name}' é {file_info['mime_type']}, não texto"
+            )
+
+        detected_encoding = file_info['encoding'] if encoding == 'auto' else encoding
+
+        try:
+            with open(self.file_path, 'r', encoding=detected_encoding) as f:
+                content = f.read()
+
+            # Remove BOM se presente
+            if content.startswith('\ufeff'):
+                content = content[1:]
+
+            return content
+
+        except UnicodeDecodeError:
+            with open(self.file_path, 'r', encoding=detected_encoding, errors='ignore') as f:
+                content = f.read()
+
+            if content.startswith('\ufeff'):
+                content = content[1:]
+
+            return content
+
     def can_handle(self, source: Any) -> bool:
+        """Verifica se o driver pode processar a fonte."""
         if isinstance(source, (str, Path)):
             path = Path(source)
             return path.exists() and path.is_file()
         return False
 
     def get_content(self) -> bytes:
+        """Obtém o conteúdo como bytes."""
         if not self.is_available():
-            raise FileNotFoundError(f"File not found: {self.file_path}")
+            raise FileNotFoundError(f"Arquivo não encontrado: {self.file_path}")
         return self.file_path.read_bytes()
 
     def get_metadata(self) -> Dict[str, Any]:
-        if not self.is_available():
-            return {}
+        """Obtém metadados da fonte."""
+        try:
+            return self.get_file_info()
+        except Exception:
+            # Fallback para versão simples se get_file_info falhar
+            if not self.is_available():
+                return {}
 
-        stat = self.file_path.stat()
-        return {
-            'size': stat.st_size,
-            'modified': stat.st_mtime,
-            'name': self.file_path.name,
-            'extension': self.file_path.suffix,
-            'path': str(self.file_path.absolute())
-        }
+            stat = self.file_path.stat()
+            return {
+                'size': stat.st_size,
+                'modified': stat.st_mtime,
+                'name': self.file_path.name,
+                'extension': self.file_path.suffix,
+                'path': str(self.file_path.absolute()),
+            }
 
     def is_available(self) -> bool:
+        """Verifica se a fonte está disponível."""
         return self.file_path.exists() and self.file_path.is_file()
-
 
 @dataclass
 class UrlDriver(ContentDriver):

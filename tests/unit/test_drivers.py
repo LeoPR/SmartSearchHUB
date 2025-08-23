@@ -34,6 +34,15 @@ class TestLocalFileDriver:
         result = driver.get_content_as_text(encoding='utf-8')
         assert result == content
 
+    def test_get_content_with_portuguese(self, tmp_path):
+        test_file = tmp_path / "test_pt.txt"
+        content = "configuração técnica: açúcar, não, coração"
+        test_file.write_text(content, encoding='utf-8')
+
+        driver = LocalFileDriver(test_file)
+        result = driver.get_content_as_text(encoding='auto')
+        assert result == content
+
 class TestUrlDriver:
     @patch('requests.get')
     def test_fetch_url_success(self, mock_get):
