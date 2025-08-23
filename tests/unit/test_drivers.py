@@ -83,6 +83,7 @@ class TestUrlDriver:
         mock_response.status_code = 200
         mock_response.headers = {'content-type': 'text/html'}
         mock_response.url = "https://example.com"
+        mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         driver = UrlDriver("https://example.com")
@@ -99,6 +100,7 @@ class TestUrlDriver:
         mock_response.status_code = 200
         mock_response.headers = {'content-type': 'text/html; charset=utf-8'}
         mock_response.url = "https://example.com"
+        mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         driver = UrlDriver("https://example.com")
@@ -117,6 +119,7 @@ class TestUrlDriver:
             'content-length': '1234'
         }
         mock_response.url = "https://example.com"
+        mock_response.raise_for_status.return_value = None
         mock_head.return_value = mock_response
 
         driver = UrlDriver("https://example.com")
@@ -125,26 +128,31 @@ class TestUrlDriver:
         assert metadata['status_code'] == 200
         assert metadata['content_type'] == 'text/html'
         assert metadata['url'] == "https://example.com"
+        mock_head.assert_called_once()
 
     @patch('requests.head')
     def test_is_available(self, mock_head):
         """Testa verificação de disponibilidade."""
         mock_response = Mock()
         mock_response.status_code = 200
+        mock_response.headers = {}
         mock_head.return_value = mock_response
 
         driver = UrlDriver("https://example.com")
         assert driver.is_available() == True
+        mock_head.assert_called_once()
 
     @patch('requests.head')
     def test_is_not_available(self, mock_head):
         """Testa URL não disponível."""
         mock_response = Mock()
         mock_response.status_code = 404
+        mock_response.headers = {}
         mock_head.return_value = mock_response
 
         driver = UrlDriver("https://example.com/404")
         assert driver.is_available() == False
+        mock_head.assert_called_once()
 
     def test_can_handle_url(self):
         """Testa identificação de URLs válidas."""
@@ -154,6 +162,18 @@ class TestUrlDriver:
         assert driver.can_handle("http://example.com") == True
         assert driver.can_handle("ftp://example.com") == False
         assert driver.can_handle("/local/path") == False
+
+    @patch('requests.get')
+    def test_fetch_url_with_error(self, mock_get):
+        """Testa tratamento de erro HTTP."""
+        mock_response = Mock()
+        mock_response.raise_for_status.side_effect = Exception("HTTP 500 Error")
+        mock_get.return_value = mock_response
+
+        driver = UrlDriver("https://example.com/error")
+
+        with pytest.raises(ConnectionError):
+            driver.get_content()
 
 
 class TestInlineContentDriver:
