@@ -1,0 +1,6 @@
+{
+  "headers": {
+    "Authorization": "Bearer <token-placeholder>",
+    "Cookie": "name=value; another=value"
+  }
+}

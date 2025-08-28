@@ -1,0 +1,37 @@
+[
+  {
+    "driver": "gdrive",
+    "location": "1teCa93xk9Qn71xVSMIkfxTlRasa5jAic",
+    "auth": {
+      "method": "service_account",
+      "file": "./config/credentials/sa-service-account.json",
+      "env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+      "scopes": ["https://www.googleapis.com/auth/drive.readonly"]
+    }
+  },
+  {
+    "driver": "gdrive",
+    "location": "PASTE_ANOTHER_FOLDER_ID_FOR_OAUTH",
+    "auth": {
+      "method": "oauth",
+      "credentials_file": "./config/credentials/client_secret_example.json",
+      "token_file": "./config/credentials/client_token.json"
+    }
+  },
+  {
+    "driver": "url",
+    "location": "https://sites.google.com/indt.org.br/guideme/guideme?authuser=1",
+    "auth": {
+      "method": "headers",
+      "headers_file": "./config/credentials/url_headers.json"
+    }
+  },
+  {
+    "driver": "url",
+    "location": "https://example.com/private",
+    "auth": {
+      "method": "bearer",
+      "token_env": "URL_BEARER_TOKEN"
+    }
+  }
+]

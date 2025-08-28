@@ -1,0 +1,5 @@
+{
+    "auth_method": "oauth",
+    "credentials_file": "./config/credentials/client_secret_737482562292-hrpme53jvk24vs2vvucai2h5v0p2b42i.apps.googleusercontent.com.json",
+    "token_file": "./config/credentials/client_token.json"
+}

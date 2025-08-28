@@ -8,3 +8,19 @@ config/db.sqlite
 config/gdrive_auth.json
 config/bootstrap_folders.json
 /experiments
+
+# Configs locais (reais) - mantenha fora do git
+/config/**/*.json
+
+# Mas permita versionar SOMENTE templates de exemplo
+!config/**/*example.json
+
+# Permitir arquivos de documentação/markdown
+!config/**/*.md
+
+# Tokens/segredos comuns
+token.json
+client_token.json
+
+# (se quiser, ignore também qualquer arquivo .env)
+.env
