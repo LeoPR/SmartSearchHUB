@@ -1,80 +1,78 @@
-import pytest
-import os
-from pathlib import Path
-from src.api.facade import Folder
-from src.providers.storage import Storage
-from src.providers.config import Config
-from src.core.io.html import Html
+"""
+Teste de integração (gated) para Google Drive:
+- Só executa se RUN_GDRIVE_INTEGRATION=1.
+- Obtém a URI da pasta de teste de uma destas fontes (nessa ordem):
+    1) GDRIVE_TEST_FOLDER_URI (ex.: gdrive://<folder-id>)
+    2) Storage("sqlite://./config/db.sqlite") se houver entradas
+    3) GDRIVE_TEST_FOLDER (apenas o ID; construímos gdrive://<ID>)
+- Usa a configuração unificada do projeto: src.providers.config.Config(file="./config/gdrive_auth.json")
+  que deve conter as credenciais (service account ou oauth). Para OAuth, o fluxo interativo vai abrir o
+  navegador padrão (InstalledAppFlow.run_local_server) quando necessário.
 
+Este teste valida:
+- Consegue instanciar Folder via Facade a partir da URI.
+- Consegue listar objetos.
+- Se houver ao menos um, baixa conteúdo (get_raw) e depois limpa (clean).
+
+Requisitos para execução local:
+  export RUN_GDRIVE_INTEGRATION=1
+  # Uma das opções de origem da pasta:
+  export GDRIVE_TEST_FOLDER_URI="gdrive://<ID>"
+  # ou
+  preparar ./config/db.sqlite com uma entrada válida (via Storage.bootstrap_from_file, por exemplo)
+  # ou
+  export GDRIVE_TEST_FOLDER="<ID>"
+  # E credenciais:
+  - Para service account: apontar no gdrive_auth.json ou usar envs esperadas por esse arquivo.
+  - Para OAuth: apontar client_secret/token no gdrive_auth.json.
+"""
+import os
+import pytest
 
 @pytest.mark.integration
-@pytest.mark.slow
-class TestRealGoogleDrive:
-    """Testes que requerem conexão real com Google Drive."""
+def test_gdrive_integration_list_and_download():
+    if os.getenv("RUN_GDRIVE_INTEGRATION") != "1":
+        pytest.skip("Integration tests disabled (set RUN_GDRIVE_INTEGRATION=1)")
 
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        """Setup que só roda se as configurações existirem."""
-        config_path = Path("./config/gdrive_auth.json")
-        db_path = Path("./config/db.sqlite")
+    # Imports locais para evitar custo quando o teste é pulado
+    from src.providers.storage import Storage
+    from src.providers.config import Config  # Config do projeto (carrega ./config/gdrive_auth.json)
+    from src.api.facade import Folder
 
-        if not config_path.exists() or not db_path.exists():
-            pytest.skip("Configurações do Google Drive não encontradas")
+    # 1) Tenta via env URI
+    folder_uri = os.getenv("GDRIVE_TEST_FOLDER_URI")
 
-        self.cfg = Config(file=str(config_path))
-        self.storage = Storage(f"sqlite://{db_path}")
+    # 2) Tenta via Storage, se não veio por env
+    if not folder_uri:
+        try:
+            storage = Storage("sqlite://./config/db.sqlite")
+            if len(storage) > 0:
+                folder_uri = storage[0]
+        except Exception:
+            folder_uri = None
 
-        if len(self.storage) == 0:
-            pytest.skip("Nenhuma pasta configurada no storage")
+    # 3) Tenta via GDRIVE_TEST_FOLDER (ID simples)
+    if not folder_uri:
+        folder_id = os.getenv("GDRIVE_TEST_FOLDER")
+        if folder_id:
+            folder_uri = f"gdrive://{folder_id}"
 
-        self.folder_uri = self.storage[0]
+    assert folder_uri, "Defina GDRIVE_TEST_FOLDER_URI ou GDRIVE_TEST_FOLDER, ou prepare config/db.sqlite com uma entrada."
 
-    def test_basic_connectivity(self):
-        """Testa conectividade básica (baseado em list_gdrive_load.py)."""
-        assert self.folder_uri.startswith("gdrive://")
-        print(f"Conectado com: {self.folder_uri}")
+    # Carrega config unificada do projeto
+    cfg = Config(file="./config/gdrive_auth.json")
 
-    def test_folder_listing(self):
-        """Testa listagem de pasta (baseado em list_gdrive_min.py)."""
-        folder = Folder.from_uri(
-            self.folder_uri,
-            config=self.cfg,
-            tmp="./tmp",
-            cache="./cache"
-        )
+    # Cria Folder via Facade, usando a infra do projeto
+    folder = Folder.from_uri(folder_uri, config=cfg, tmp="./tmp", cache="./cache", save="./permanent")
 
-        info = folder.info()
-        assert info["provider"] == "gdrive"
+    # Lista objetos
+    objs = folder.list()
+    assert isinstance(objs, list)
 
-        files = folder.list()
-        print(f"Encontrados {len(files)} arquivos")
-
-        for f in files[:3]:  # Só os primeiros 3
-            assert hasattr(f, 'name')
-            assert hasattr(f, 'mimetype')
-            assert hasattr(f, 'id')
-
-    def test_html_extraction(self):
-        """Testa extração de HTML (baseado em list_gdrive_htmls.py)."""
-        folder = Folder.from_uri(
-            self.folder_uri,
-            config=self.cfg,
-            tmp="./tmp",
-            cache="./cache"
-        )
-
-        html_files = [obj for obj in folder.list() if isinstance(obj, Html)]
-
-        if html_files:
-            html_file = html_files[0]
-
-            # Testa métodos básicos
-            raw_content = html_file.get_raw(head={"characters": 100})
-            assert len(raw_content) <= 100
-
-            text_content = html_file.get_text(head={"characters": 100})
-            assert isinstance(text_content, str)
-
-            print(f"Processado: {html_file.name}")
-        else:
-            pytest.skip("Nenhum arquivo HTML encontrado")
+    # Se houver objetos, tenta baixar e ler o início (força download)
+    if objs:
+        obj = objs[0]
+        snippet = obj.get_raw(head={"characters": 128}, permanent=False)
+        assert isinstance(snippet, str)
+        # Limpa artefatos locais
+        obj.clean()

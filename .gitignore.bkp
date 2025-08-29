@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs
+.venv/
+venv/
+ENV/
+env/
+.env/
+.env.*             # variações de arquivos de ambiente
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test caches
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+.cache/
+.mypy_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Python packaging
+pip-wheel-metadata/
+
+# Playwright / browser storage state (sensitive session)
+config/credentials/*.storage_state.json
+config/credentials/*_storage_state.json
+
+# Configs locais e credenciais (mantemos apenas templates *.example.json)
+# Ignora todos os jsons em config/ e subpastas...
+/config/**/*.json
+# ...mas permite commitar templates de exemplo
+!config/**/*example.json
+!config/*.example.json
+
+# Caso você use diretório específico de creds
+/config/credentials/*
+!config/credentials/*example.json
+
+# Outros arquivos sensíveis que não devem ir ao repo
+token.json
+client_token.json
+*.pem
+*.key
+*.p12
+
+# Windows Visual Studio
+.vs/
+
+# Misc
+*.sqlite3
