@@ -54,14 +54,12 @@ class GDriveExamplesRunner:
                 "requires": ["GDRIVE_TEST_FOLDER"],
                 "module": "examples.gdrive.02_list_basic"
             },
-            # Placeholder para futuros examples
             "03": {
                 "name": "03_extract_html",
                 "title": "Extração de HTML/Texto",
                 "description": "Extrai conteúdo de arquivos HTML e texto",
                 "requires": ["GDRIVE_TEST_FOLDER"],
-                "module": "examples.gdrive.03_extract_html",
-                "implemented": False
+                "module": "examples.gdrive.03_extract_html"
             }
         }
 

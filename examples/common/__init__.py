@@ -9,5 +9,6 @@ Este módulo fornece componentes reutilizáveis para todos os examples:
 """
 
 from .auth_manager import AuthManager
+from .content_extractor import ContentExtractor
 
-__all__ = ['AuthManager']
+__all__ = ['AuthManager', 'ContentExtractor']
