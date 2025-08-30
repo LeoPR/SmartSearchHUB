@@ -25,3 +25,4 @@ client_token.json
 # (se quiser, ignore também qualquer arquivo .env)
 .env
 docs/SmartSearchHUB Examples Refactor.docx
+docs/pdf_extractor_plan.md

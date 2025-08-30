@@ -394,6 +394,237 @@ class ContentExtractor:
 
         return results
 
+    # examples/common/content_extractor.py - ATUALIZAÇÃO PARA PDF
+    # Adicionar estas linhas na classe ContentExtractor:
+
+    def is_extractable(self, file_obj: Any) -> bool:
+        """
+        Verifica se arquivo é adequado para extração de conteúdo.
+        ATUALIZADO: Agora inclui suporte a PDF.
+        """
+        name = getattr(file_obj, 'name', '').lower()
+        mimetype = getattr(file_obj, 'mimetype', '').lower()
+
+        # HTML explícito
+        if mimetype.startswith('text/html') or name.endswith(('.html', '.htm')):
+            return True
+
+        # Google Docs (serão exportados como HTML)
+        if mimetype.startswith('application/vnd.google-apps.document'):
+            return True
+
+        # Texto puro
+        if mimetype.startswith('text/plain') or name.endswith(('.txt', '.md')):
+            return True
+
+        # Google Sheets (podem ser exportados como HTML)
+        if mimetype.startswith('application/vnd.google-apps.spreadsheet'):
+            return True
+
+        # PDF - NOVO SUPORTE
+        if mimetype.startswith('application/pdf') or name.endswith('.pdf'):
+            return True
+
+        return False
+
+    def extract_content(self, file_obj: Any, **kwargs) -> Dict[str, Any]:
+        """
+        Extrai conteúdo estruturado de um arquivo.
+        ATUALIZADO: Agora suporta PDF além de HTML.
+        """
+        # Obtém conteúdo bruto
+        try:
+            # Detecta tipo de arquivo
+            file_type = self._detect_content_type('', file_obj)
+
+            if file_type.startswith('pdf'):
+                return self._extract_pdf_content(file_obj, **kwargs)
+            else:
+                # Lógica existente para HTML/texto
+                raw_content = file_obj.get_raw(**kwargs)
+        except Exception as e:
+            return {
+                'error': f"Erro ao obter conteúdo: {e}",
+                'raw_content': '',
+                'clean_text': '',
+                'statistics': {},
+                'links': [],
+                'metadata': {},
+                'content_type': 'unknown'
+            }
+
+        # Resto da lógica existente para HTML/texto...
+        clean_text = self._extract_clean_text(raw_content, file_obj)
+        statistics = self._calculate_statistics(raw_content, clean_text)
+
+        # Links só para HTML
+        links = []
+        if self.extract_links and not file_type.startswith('pdf'):
+            links = self._extract_links(raw_content, file_obj)
+
+        metadata = {
+            'file_name': getattr(file_obj, 'name', ''),
+            'file_mimetype': getattr(file_obj, 'mimetype', ''),
+            'file_id': getattr(file_obj, 'id', ''),
+            'content_type': file_type
+        }
+
+        return {
+            'raw_content': raw_content,
+            'clean_text': clean_text,
+            'statistics': statistics,
+            'links': links,
+            'metadata': metadata,
+            'preview': clean_text[:self.preview_length] if clean_text else ''
+        }
+
+    def _extract_pdf_content(self, file_obj: Any, **kwargs) -> Dict[str, Any]:
+        """Extrai conteúdo estruturado de PDF."""
+        try:
+            # Verifica se o objeto tem métodos específicos de PDF
+            if hasattr(file_obj, 'get_metadata') and hasattr(file_obj, 'get_text'):
+                # Usa métodos específicos do PDF wrapper
+                metadata = file_obj.get_metadata()
+
+                # Configurações específicas para PDF
+                max_pages = kwargs.get('max_pages', 5)
+                text = file_obj.get_text(max_pages=max_pages, include_page_breaks=True)
+
+                # Informações de páginas se disponível
+                pages_info = []
+                if hasattr(file_obj, 'get_pages'):
+                    try:
+                        pages_data = file_obj.get_pages(max_pages=max_pages)
+                        pages_info = [
+                            {
+                                'page_number': p.get('page_number', i + 1),
+                                'word_count': p.get('word_count', 0),
+                                'char_count': p.get('char_count', 0)
+                            }
+                            for i, p in enumerate(pages_data)
+                        ]
+                    except Exception:
+                        pass
+
+                # Estatísticas específicas de PDF
+                statistics = self._calculate_pdf_statistics(text, metadata, pages_info)
+
+            else:
+                # Fallback para método genérico
+                raw_content = file_obj.get_raw(**kwargs)
+                text = self._extract_clean_text(raw_content, file_obj)
+                statistics = self._calculate_statistics(raw_content, text)
+                metadata = {}
+                pages_info = []
+
+            return {
+                'raw_content': text,  # Para PDF, texto já é "limpo"
+                'clean_text': text,
+                'statistics': statistics,
+                'links': [],  # PDFs não têm links como HTML
+                'metadata': {
+                    'file_name': getattr(file_obj, 'name', ''),
+                    'file_mimetype': getattr(file_obj, 'mimetype', ''),
+                    'file_id': getattr(file_obj, 'id', ''),
+                    'content_type': 'pdf',
+                    'pdf_metadata': metadata,
+                    'pages_info': pages_info
+                },
+                'preview': text[:self.preview_length] if text else '',
+                'content_type': 'pdf'
+            }
+
+        except Exception as e:
+            return {
+                'error': f"Erro na extração PDF: {e}",
+                'raw_content': '',
+                'clean_text': '',
+                'statistics': {},
+                'links': [],
+                'metadata': {'content_type': 'pdf'},
+                'content_type': 'pdf'
+            }
+
+    def _calculate_pdf_statistics(self, text: str, pdf_metadata: Dict, pages_info: List) -> Dict[str, Any]:
+        """Calcula estatísticas específicas para PDF."""
+        stats = self._calculate_statistics(text, text)  # Usa método base
+
+        # Adiciona estatísticas específicas de PDF
+        stats.update({
+            'pdf_pages': pdf_metadata.get('pages_count', len(pages_info)),
+            'pdf_title': pdf_metadata.get('title', ''),
+            'pdf_author': pdf_metadata.get('author', ''),
+            'pdf_type': pdf_metadata.get('pdf_type', 'unknown'),
+            'extraction_method': pdf_metadata.get('extraction_method', 'unknown'),
+            'encrypted': pdf_metadata.get('encrypted', False),
+            'pages_processed': len(pages_info)
+        })
+
+        # Estatísticas por página se disponível
+        if pages_info:
+            total_page_words = sum(p.get('word_count', 0) for p in pages_info)
+            stats['avg_words_per_page'] = total_page_words / len(pages_info) if pages_info else 0
+            stats['pages_with_text'] = len([p for p in pages_info if p.get('word_count', 0) > 0])
+
+        return stats
+
+    def _detect_content_type(self, raw_content: str, file_obj: Any) -> str:
+        """
+        Detecta tipo de conteúdo mais específico.
+        ATUALIZADO: Inclui detecção de PDF.
+        """
+        mimetype = getattr(file_obj, 'mimetype', '').lower()
+        name = getattr(file_obj, 'name', '').lower()
+
+        # PDF
+        if mimetype.startswith('application/pdf') or name.endswith('.pdf'):
+            return 'pdf_document'
+
+        # Google Apps
+        if mimetype.startswith('application/vnd.google-apps.document'):
+            return 'google_document'
+        elif mimetype.startswith('application/vnd.google-apps.spreadsheet'):
+            return 'google_spreadsheet'
+        elif mimetype.startswith('application/vnd.google-apps.presentation'):
+            return 'google_presentation'
+
+        # HTML
+        if mimetype.startswith('text/html') or name.endswith(('.html', '.htm')):
+            if '<html' in raw_content.lower() and '<body' in raw_content.lower():
+                return 'html_page'
+            else:
+                return 'html_fragment'
+
+        # Texto
+        if mimetype.startswith('text/plain') or name.endswith('.txt'):
+            return 'plain_text'
+
+        # Markdown
+        if name.endswith('.md'):
+            return 'markdown'
+
+        return 'unknown'
+
+    def filter_extractable_files(self, files: List[Any]) -> List[Any]:
+        """
+        Filtra lista de arquivos, retornando apenas os processáveis.
+        ATUALIZADO: Agora inclui PDFs.
+        """
+        return [f for f in files if self.is_extractable(f)]
+
+    # Método auxiliar para filtrar apenas PDFs
+    def filter_pdf_files(self, files: List[Any]) -> List[Any]:
+        """Filtra apenas arquivos PDF."""
+        pdf_files = []
+        for file_obj in files:
+            name = getattr(file_obj, 'name', '').lower()
+            mimetype = getattr(file_obj, 'mimetype', '').lower()
+
+            if mimetype.startswith('application/pdf') or name.endswith('.pdf'):
+                pdf_files.append(file_obj)
+
+        return pdf_files
+
 
 def quick_test():
     """Teste rápido do ContentExtractor."""

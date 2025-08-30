@@ -47,144 +47,74 @@ python -m examples gdrive
 
 ## 📚 **Examples Implementados**
 
+
 | Example | Funcionalidade | Requer Pasta | Status |
 |---------|----------------|--------------|--------|
 | **01_auth_test** | Teste de autenticação | ❌ | ✅ |
 | **02_list_basic** | Listagem de arquivos | ✅ | ✅ |
-| **03_extract_html** | Extração de conteúdo | ✅ | ✅ |
-| **04_recursive** | Navegação recursiva | ✅ | 🚧 |
+| **03_extract_html** | Extração de conteúdo HTML | ✅ | ✅ |
+| **04_extract_pdf** | Extração de conteúdo PDF | ✅ | ✅ |
 | **05_batch_process** | Processamento em lote | ✅ | 🚧 |
 
-### **🔐 01_auth_test.py - Teste de Autenticação**
-```powershell
-python -m examples.gdrive 01
-```
-- Verifica autenticação OAuth/Service Account
-- Não requer pasta específica
-- Testa detecção automática de credenciais
-
-### **📁 02_list_basic.py - Listagem Básica**
+### **📄 04_extract_pdf.py - Extração de PDF ⭐**
 ```powershell
 $env:GDRIVE_TEST_FOLDER="folder_id"
-python -m examples.gdrive 02
+python -m examples.gdrive 04
 ```
-- Lista arquivos sem downloads
-- Mostra estatísticas por tipo MIME
-- Configurável: `GDRIVE_MAX_FILES=10`
-
-### **📄 03_extract_html.py - Extração de Conteúdo ⭐**
-```powershell
-$env:GDRIVE_TEST_FOLDER="folder_id"
-python -m examples.gdrive 03
-```
-- Filtra conteúdo de texto/HTML automaticamente
-- Extrai dados brutos + texto limpo
-- Analisa links (internos vs externos)
-- Mostra estatísticas (palavras, linhas)
+- Detecta automaticamente bibliotecas PDF disponíveis
+- Extrai texto, metadados e estatísticas
+- Análise página por página
+- Suporte a PDFs baseados em texto e imagem
+- Relatório detalhado de tipos de PDF
 
 **Configurações**:
-- `GDRIVE_MAX_FILES=5` - Arquivos a processar
-- `GDRIVE_PREVIEW_LENGTH=300` - Tamanho do preview  
-- `GDRIVE_EXTRACT_LINKS=true` - Extrair links
+- `GDRIVE_PDF_MAX_FILES=3` - PDFs a processar
+- `GDRIVE_PDF_MAX_PAGES=5` - Páginas por PDF
+- `GDRIVE_PDF_PREVIEW_LENGTH=200` - Tamanho do preview
+- `GDRIVE_PDF_EXTRACT_METADATA=true` - Extrair metadados
 
----
+**Bibliotecas Suportadas**:
+- PyMuPDF (recomendado): `pip install PyMuPDF`
+- pdfplumber: `pip install pdfplumber` 
+- PyPDF2: `pip install PyPDF2`
 
-## 🛠️ **Componentes Principais**
+## 🎯 **Casos de Uso** (ATUALIZADO)
 
-### **🔐 AuthManager** 
-Coordenador de autenticação que:
-- Detecta credenciais automaticamente
-- Suporta OAuth + Service Account
-- Controla interatividade (`interactive=True/False`)
-- Avisa antes de abrir navegador
-
-### **📄 ContentExtractor**
-Extrator de conteúdo que:
-- Filtra HTML, Google Docs, texto
-- Remove tags HTML → texto limpo
-- Extrai links e metadados
-- Funciona com diferentes fontes
-
----
-
-## 🎯 **Casos de Uso**
-
-### **Exploração Rápida**
+### **Exploração Completa**
 ```powershell
 $env:GDRIVE_TEST_FOLDER="abc123"
-python -m examples gdrive 02 03  # Lista + extrai
+python -m examples gdrive 02 03 04  # Lista + HTML + PDF
 ```
 
-### **Análise Detalhada**  
+### **Análise Específica de PDF**  
 ```powershell
-$env:GDRIVE_MAX_FILES="10"
-$env:GDRIVE_PREVIEW_LENGTH="500"
-python -m examples gdrive 03
+$env:GDRIVE_PDF_MAX_FILES="5"
+$env:GDRIVE_PDF_MAX_PAGES="10"
+python -m examples gdrive 04
 ```
 
-### **Modo Batch (Futuro)**
+### **Comparação HTML vs PDF**
 ```powershell
-python -m examples gdrive 05  # Processa pasta inteira
+# Extrair ambos os tipos
+python -m examples gdrive 03 04
 ```
 
----
-
-## 🔧 **Configuração**
-
-### **OAuth (Desenvolvimento)**
-`./config/gdrive_auth.json`:
-```json
-{
-  "auth_method": "oauth",
-  "credentials_file": "./config/credentials/client_secret.json",
-  "token_file": "./config/credentials/client_token.json"
-}
-```
-
-### **Service Account (Produção)**
-```json
-{
-  "auth_method": "service_account",
-  "credentials_file": "./config/credentials/sa-service-account.json"
-}
-```
-
----
-
-## 🐛 **Troubleshooting**
-
-### **❌ "Variável não definida"**
-```powershell
-# PowerShell - com aspas!
-$env:GDRIVE_TEST_FOLDER="folder_id"
-```
-
-### **❌ "Credenciais não encontradas"**
-```powershell
-python -m examples --setup           # Criar templates
-python -m examples.common test-detection  # Verificar detecção
-```
-
-### **❌ "Module not found"**
-- Execute da raiz do projeto
-- Ative ambiente virtual
-
----
-
-## 📊 **Variáveis de Ambiente**
+## 📊 **Variáveis de Ambiente** (ATUALIZADAS)
 
 | Variável | Uso | Default | Exemplos |
 |----------|-----|---------|----------|
 | `GDRIVE_TEST_FOLDER` | ID da pasta | - | `"1AbCdEf..."` |
-| `GDRIVE_MAX_FILES` | Limite de arquivos | `10` | `"5"`, `"20"` |
-| `GDRIVE_PREVIEW_LENGTH` | Preview chars | `300` | `"500"` |
-| `GDRIVE_EXTRACT_LINKS` | Extrair links | `true` | `"false"` |
+| `GDRIVE_MAX_FILES` | Limite de arquivos (geral) | `10` | `"5"`, `"20"` |
+| `GDRIVE_PDF_MAX_FILES` | Limite PDFs específico | `3` | `"5"`, `"10"` |
+| `GDRIVE_PDF_MAX_PAGES` | Páginas por PDF | `5` | `"10"`, `"all"` |
+| `GDRIVE_PDF_PREVIEW_LENGTH` | Preview por página | `200` | `"300"`, `"500"` |
+| `GDRIVE_PDF_EXTRACT_METADATA` | Extrair metadados PDF | `true` | `"false"` |
+| `GDRIVE_PREVIEW_LENGTH` | Preview HTML (geral) | `300` | `"500"` |
+| `GDRIVE_EXTRACT_LINKS` | Extrair links HTML | `true` | `"false"` |
 | `GDRIVE_INTERACTIVE` | Modo interativo | `true` | `"false"` |
 | `DEBUG` | Debug detalhado | - | `"1"` |
 
----
-
-## 🎯 **Comandos Essenciais**
+## 🎯 **Comandos Essenciais** (ATUALIZADOS)
 
 ```powershell
 # Setup inicial
@@ -193,13 +123,181 @@ python -m examples --setup
 # Listar examples
 python -m examples gdrive --list
 
-# Teste rápido
+# Teste completo (todos os examples)
 $env:GDRIVE_TEST_FOLDER="folder_id"
-python -m examples gdrive 01 02 03
+python -m examples gdrive
 
-# Debug
+# Examples específicos
+python -m examples gdrive 01        # Só autenticação
+python -m examples gdrive 02 03     # HTML + listagem
+python -m examples gdrive 04        # Só PDF
+python -m examples gdrive 03 04     # HTML + PDF
+
+# Debug específico
 $env:DEBUG="1"
-python -m examples gdrive 03
+python -m examples gdrive 04
+```
+
+## 🛠️ **Dependências Opcionais**
+
+### **Para melhor suporte PDF:**
+```powershell
+# Opção 1: PyMuPDF (recomendado - mais rápido)
+pip install PyMuPDF
+
+# Opção 2: pdfplumber (bom para tabelas)
+pip install pdfplumber
+
+# Opção 3: PyPDF2 (básico, sempre funciona)  
+pip install PyPDF2
+```
+
+### **Verificar bibliotecas instaladas:**
+```powershell
+python -c "
+try:
+    import fitz; print('✅ PyMuPDF instalado')
+except: print('❌ PyMuPDF não encontrado')
+    
+try:  
+    import pdfplumber; print('✅ pdfplumber instalado')
+except: print('❌ pdfplumber não encontrado')
+    
+try:
+    import PyPDF2; print('✅ PyPDF2 instalado') 
+except: print('❌ PyPDF2 não encontrado')
+"
+```
+
+## 📊 **Exemplo de Saída - PDF**
+
+```
+📄 EXTRAÇÃO DE CONTEÚDO PDF - GOOGLE DRIVE
+======================================================================
+📂 Pasta: 1AbCdEfGhIjKlMnOp
+📊 Máximo de arquivos: 3
+📊 Máximo de páginas por PDF: 5
+🔍 Extrair metadados: ✅ Sim
+
+🔍 Verificando bibliotecas PDF...
+✅ Biblioteca PDF detectada: PyMuPDF (recomendado)
+
+🔗 Conectando à pasta...
+📋 Listando arquivos...
+
+📊 Arquivos encontrados:
+   Total na pasta: 15
+   Arquivos PDF: 2
+   A processar: 2
+
+🚀 Processando PDFs...
+======================================================================
+
+[1/2] 📄 Manual_Usuario.pdf
+   🔍 Extraindo metadados...
+   📊 Informações básicas:
+      Título: Manual do Usuário - Sistema XYZ
+      Autor: Equipe Técnica
+      Páginas: 8
+      Tipo PDF: text_based
+   📝 Extraindo texto...
+   📊 Estatísticas do texto:
+      Caracteres: 12,450
+      Palavras: 2,180
+      Linhas: 245
+   📋 Análise por páginas:
+      Páginas processadas: 5
+        Página 1: 380 palavras
+        Página 2: 425 palavras
+        Página 3: 390 palavras
+   📝 Preview do conteúdo:
+      MANUAL DO USUÁRIO
+      Sistema de Gerenciamento XYZ
+      Versão 2.1 - Março 2024...
+
+[2/2] 📄 Relatorio_Vendas.pdf
+   🔍 Extraindo metadados...
+   📊 Informações básicas:
+      Páginas: 3
+      Tipo PDF: mixed
+   📝 Extraindo texto...
+   📊 Estatísticas do texto:
+      Caracteres: 5,820
+      Palavras: 940
+      Linhas: 88
+   📋 Análise por páginas:
+      Páginas processadas: 3
+        Página 1: 320 palavras
+        Página 2: 280 palavras
+        Página 3: 340 palavras
+   📝 Preview do conteúdo:
+      RELATÓRIO DE VENDAS
+      Período: Janeiro - Março 2024
+      Total Vendido: R$ 145.680...
+
+======================================================================
+📊 RESUMO FINAL - EXTRAÇÃO DE PDFs
+======================================================================
+✅ PDFs processados: 2/2
+📄 Total de páginas analisadas: 8
+📝 Total de palavras: 3,120
+📊 Média de palavras por PDF: 1,560
+📊 Média de palavras por página: 390
+
+📈 Distribuição por tipo de PDF:
+   Text Based: 1 PDF(s)
+   Mixed: 1 PDF(s)
+
+🎉 EXTRAÇÃO DE PDFs CONCLUÍDA COM SUCESSO!
+```
+
+## 🔧 **Troubleshooting PDF**
+
+### **❌ "Nenhuma biblioteca PDF detectada"**
+```powershell
+# Instalar pelo menos uma biblioteca
+pip install PyMuPDF  # Mais rápida e completa
+
+# Verificar instalação
+python -c "import fitz; print('PyMuPDF OK')"
+```
+
+### **❌ "Nenhum texto extraído"**
+- PDF pode ser baseado em imagens (precisa OCR)
+- PDF pode estar criptografado/protegido
+- Tente biblioteca diferente:
+```powershell
+pip install pdfplumber  # Alternativa
+```
+
+### **❌ "Erro de memória com PDFs grandes"**
+```powershell
+# Limite páginas processadas
+$env:GDRIVE_PDF_MAX_PAGES="3"
+python -m examples gdrive 04
+```
+
+## 💡 **Dicas de Uso**
+
+### **Para análise rápida:**
+```powershell
+$env:GDRIVE_PDF_MAX_FILES="1"
+$env:GDRIVE_PDF_MAX_PAGES="2" 
+python -m examples gdrive 04
+```
+
+### **Para análise completa:**
+```powershell
+$env:GDRIVE_PDF_MAX_FILES="10"
+$env:GDRIVE_PDF_MAX_PAGES="all"
+$env:GDRIVE_PDF_EXTRACT_METADATA="true"
+python -m examples gdrive 04
+```
+
+### **Para comparar tipos de arquivo:**
+```powershell
+# Processar HTML e PDF na mesma sessão
+python -m examples gdrive 03 04
 ```
 
 ---

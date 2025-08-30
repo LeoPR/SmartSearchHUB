@@ -60,6 +60,14 @@ class GDriveExamplesRunner:
                 "description": "Extrai conteúdo de arquivos HTML e texto",
                 "requires": ["GDRIVE_TEST_FOLDER"],
                 "module": "examples.gdrive.03_extract_html"
+            },
+            "04": {
+                "name": "04_extract_pdf",
+                "title": "Extração de PDF",
+                "description": "Extrai texto e metadados de arquivos PDF",
+                "requires": ["GDRIVE_TEST_FOLDER"],
+                "module": "examples.gdrive.04_extract_pdf"
+                # implemented: True é o padrão
             }
         }
 
