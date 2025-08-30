@@ -2,6 +2,10 @@
 from __future__ import annotations
 from typing import List, Dict, Any, Optional, Union
 from .baseobj import FileObject
+import os
+import tempfile
+import base64
+import traceback
 
 # Imports dos content objects
 from ..content.text import TextObject, HeadingObject
@@ -108,48 +112,100 @@ class PdfAnalyzer:
         return metadata
 
     def extract_text_with_positions(self, content: bytes, max_pages: int = None) -> List[Dict]:
-        """Extrai texto com informações de posição."""
+        """Extrai texto com informações de posição, com fallback para abrir via arquivo temporário e outros backends."""
         pages_data = []
 
         if self.library_available == 'none':
             return pages_data
 
+        doc = None
         try:
             if self.library_available == 'pymupdf':
                 import fitz
-                doc = fitz.open(stream=content, filetype="pdf")
 
-                total_pages = min(len(doc), max_pages or len(doc))
+                # tentativa 1: abrir como stream
+                try:
+                    doc = fitz.open(stream=content, filetype="pdf")
+                except Exception as e_stream:
+                    if os.getenv("DEBUG"):
+                        print(f"[DEBUG] fitz.open(stream) falhou: {e_stream}")
+                        traceback.print_exc()
+                    # tentativa 2: abrir via arquivo temporário (fallback)
+                    try:
+                        tf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                        try:
+                            tf.write(content)
+                            tf.flush()
+                            tf.close()
+                            doc = fitz.open(tf.name)
+                            if os.getenv("DEBUG"):
+                                print(f"[DEBUG] fitz.open via arquivo temporário funcionou ({tf.name})")
+                        finally:
+                            try:
+                                os.unlink(tf.name)
+                            except Exception:
+                                pass
+                    except Exception as e_file:
+                        if os.getenv("DEBUG"):
+                            print(f"[DEBUG] fitz.open(file) também falhou: {e_file}")
+                            traceback.print_exc()
+                        doc = None
 
-                for page_num in range(total_pages):
-                    page = doc[page_num]
+                if doc is None:
+                    # último recurso: tentar pdfplumber (se disponível)
+                    try:
+                        import pdfplumber, io as _io
+                        with pdfplumber.open(_io.BytesIO(content)) as pdfpl:
+                            total_pages = min(len(pdfpl.pages), max_pages or len(pdfpl.pages))
+                            for page_num in range(total_pages):
+                                p = pdfpl.pages[page_num]
+                                text = p.extract_text() or ""
+                                pages_data.append({
+                                    'page_number': page_num + 1,
+                                    'text': text,
+                                    'word_count': len(text.split()),
+                                    'char_count': len(text),
+                                    'blocks_count': 0,
+                                    'blocks': []
+                                })
+                            return pages_data
+                    except Exception:
+                        if os.getenv("DEBUG"):
+                            print("[DEBUG] pdfplumber fallback falhou ou não instalado.")
 
-                    # Texto simples
-                    text = page.get_text()
-
-                    # Blocos de texto com posições
-                    blocks = page.get_text("blocks")
-
-                    page_data = {
-                        'page_number': page_num + 1,
-                        'text': text,
-                        'word_count': len(text.split()) if text else 0,
-                        'char_count': len(text),
-                        'blocks_count': len(blocks),
-                        'blocks': [
-                            {
-                                'text': block[4] if len(block) > 4 else '',
-                                'bbox': block[:4] if len(block) >= 4 else None
-                            }
-                            for block in blocks
-                            if len(block) > 4 and block[4].strip()
-                        ]
-                    }
-
-                    pages_data.append(page_data)
+                # se abrimos com fitz, extrair normalmente
+                if doc:
+                    total_pages = min(len(doc), max_pages or len(doc))
+                    for page_num in range(total_pages):
+                        page = doc[page_num]
+                        text = page.get_text() or ""
+                        blocks = page.get_text("blocks") or []
+                        page_data = {
+                            'page_number': page_num + 1,
+                            'text': text,
+                            'word_count': len(text.split()) if text else 0,
+                            'char_count': len(text),
+                            'blocks_count': len(blocks),
+                            'blocks': [
+                                {
+                                    'text': block[4] if len(block) > 4 else '',
+                                    'bbox': block[:4] if len(block) >= 4 else None
+                                }
+                                for block in blocks
+                                if len(block) > 4 and block[4].strip()
+                            ]
+                        }
+                        pages_data.append(page_data)
 
         except Exception:
-            pass
+            if os.getenv("DEBUG"):
+                traceback.print_exc()
+        finally:
+            try:
+                if doc:
+                    doc.close()
+            except Exception:
+                pass
 
         return pages_data
 
@@ -167,13 +223,24 @@ class Pdf(FileObject):
         return "pdf"
 
     def get_pdf_content(self, use_cache: bool = True) -> bytes:
-        """Obtém conteúdo binário do PDF."""
+        """Obtém conteúdo binário do PDF (bytes, sem perda)."""
         if use_cache and self._cached_content is not None:
             return self._cached_content
 
-        content = self._f.get_raw(permanent=False)
-        if isinstance(content, str):
-            content = content.encode('latin1', errors='ignore')
+        # Lê binário diretamente do cache
+        try:
+            content = self._f.get_bytes(permanent=False)
+        except AttributeError:
+            # Compatibilidade: se a interface ainda não tiver get_bytes, tenta ler do caminho diretamente
+            # Atenção: esse bloco é apenas defensivo e pode ser removido quando get_bytes estiver garantido.
+            path = self._f._ensure_local(permanent=False)  # uso interno para fallback
+            content = path.read_bytes()
+
+        if os.getenv("DEBUG"):
+            try:
+                print(f"[DEBUG] PDF bytes len: {len(content)} header: {content[:32]!r} startswith %PDF? {content.startswith(b'%PDF')}")
+            except Exception:
+                pass
 
         if use_cache:
             self._cached_content = content

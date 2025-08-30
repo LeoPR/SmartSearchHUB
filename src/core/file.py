@@ -13,11 +13,33 @@ class BaseFile:
         self.save_dir = Path(save_dir) if save_dir else None
 
     def get_raw(self, head: Head | None = None, permanent: bool = False) -> str:
+        """
+        Lê o conteúdo como TEXTO (decodificando como UTF-8). Use somente para arquivos textuais.
+        Para binários (PDF, imagens, etc.), use get_bytes().
+        """
         path = self._ensure_local(permanent=permanent)
         text = path.read_text(encoding="utf-8", errors="ignore")
         if head is None:
             return text
         return self._apply_head(text, head)
+
+    def get_bytes(self, head: Head | None = None, permanent: bool = False) -> bytes:
+        """
+        Lê o conteúdo BRUTO (bytes) sem qualquer decodificação.
+        Use para PDFs e outros formatos binários.
+        """
+        path = self._ensure_local(permanent=permanent)
+        data = path.read_bytes()
+        if head is None:
+            return data
+        # Suporta apenas truncamento por caracteres (bytes) no modo binário
+        if isinstance(head, int):
+            return data[: max(0, int(head))]
+        chars = head.get("characters")
+        if chars is not None:
+            return data[: max(0, int(chars))]
+        # Se pedirem head por linhas em binário, mantemos simples: retorna como está
+        return data
 
     def clean(self) -> None:
         for base in (self.tmp_dir, self.cache_dir, self.save_dir):
